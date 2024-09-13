@@ -5,22 +5,20 @@ const session = require("express-session");
 const RedisStore = require("connect-redis").default;
 const redis = require("redis");
 const rateLimit = require("express-rate-limit");
-const { v4: uuidv4 } = require("uuid");
-const os = require("os");
 
+// Initialize Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Redis client
+// Initialize Redis client
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL,
 });
 redisClient.on("error", (err) => console.error("Redis error:", err));
 
-// Session middleware
+// Session middleware configuration
 const isProduction = process.env.NODE_ENV === "production";
-
 app.use(
   session({
     store: new RedisStore({ client: redisClient }),
@@ -31,16 +29,15 @@ app.use(
   })
 );
 
-// Rate limiter middleware
+// Rate limiter middleware for HTTP requests
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 5, // Limit each IP to 5 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
 });
-
 app.use(limiter);
 
-// WebSocket handling
+// WebSocket connection handling
 wss.on("connection", (ws) => {
   console.log("Client connected");
 
@@ -49,7 +46,7 @@ wss.on("connection", (ws) => {
       const data = JSON.parse(message);
       console.log("Received message:", data);
 
-      // Rate limiting
+      // Rate limiting for WebSocket messages
       const rateLimited = await isRateLimited(ws);
       if (rateLimited) {
         ws.send(JSON.stringify({ error: "Rate limit exceeded" }));
@@ -58,7 +55,6 @@ wss.on("connection", (ws) => {
 
       // Handle heartbeat and message priority
       if (data.priority) {
-        // Example: prioritize handling based on message priority
         handlePriorityMessage(ws, data);
       }
 
@@ -81,7 +77,7 @@ wss.on("connection", (ws) => {
   }, 30000);
 });
 
-// Rate limiting check
+// Rate limiting check for WebSocket messages
 async function isRateLimited(ws) {
   const ip = ws._socket.remoteAddress;
   const rateLimitKey = `rate_limit_${ip}`;
@@ -111,6 +107,7 @@ function heartbeat(ws) {
   ws.send(JSON.stringify({ type: "heartbeat" }));
 }
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
