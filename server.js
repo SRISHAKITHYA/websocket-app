@@ -11,13 +11,16 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Initialize Redis client
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL,
+let redisClient = redis.createClient({
+  url: "redis://red-cri33sbv2p9s73bjcu3g:6379",
 });
+redisClient.on("error", (err) => {
+  console.error("Redis error:", err);
+});
+
 redisClient.on("ready", () => {
   console.log("Redis client connected");
 });
-redisClient.on("error", (err) => console.error("Redis error:", err));
 
 // Session middleware configuration
 const isProduction = process.env.NODE_ENV === "production";
