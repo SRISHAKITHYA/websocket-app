@@ -14,6 +14,9 @@ const wss = new WebSocket.Server({ server });
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL,
 });
+redisClient.on("ready", () => {
+  console.log("Redis client connected");
+});
 redisClient.on("error", (err) => console.error("Redis error:", err));
 
 // Session middleware configuration
@@ -66,6 +69,7 @@ wss.on("connection", (ws) => {
       heartbeat(ws);
     } catch (err) {
       console.error("Message handling error:", err);
+      ws.send(JSON.stringify({ error: "Internal server error" }));
     }
   });
 
@@ -84,10 +88,17 @@ wss.on("connection", (ws) => {
 // Rate limiting check for WebSocket messages
 async function isRateLimited(ws) {
   const ip = ws._socket.remoteAddress;
-  const rateLimitKey = `rate_limit_${ip}`; // Fixed syntax
+  const rateLimitKey = `rate_limit_${ip}`;
   try {
     const count = await redisClient.get(rateLimitKey);
-    return count && parseInt(count) >= 5;
+    if (count && parseInt(count) >= 5) {
+      return true;
+    }
+    // Increment the count
+    await redisClient.incr(rateLimitKey);
+    // Set expiration time (e.g., 1 minute)
+    await redisClient.expire(rateLimitKey, 60);
+    return false;
   } catch (err) {
     console.error("Rate limit error:", err);
     return false;
@@ -114,5 +125,5 @@ function heartbeat(ws) {
 // Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`); // Fixed syntax
+  console.log(`Server running on port ${PORT}`);
 });
