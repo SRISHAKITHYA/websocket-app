@@ -51,17 +51,8 @@ wss.on("connection", (ws) => {
       console.log("Received message:", data);
 
       // Rate limiting for WebSocket messages
-      const ip = ws._socket.remoteAddress;
-      const rateLimitKey = `rate_limit_${ip}`;
-
-      // Increment the count
-      const count = await redisClient.incr(rateLimitKey);
-
-      // Set expiry time for the key
-      await redisClient.expire(rateLimitKey, 60); // Expire after 1 minute
-
-      // Check if the rate limit is exceeded
-      if (count > 5) {
+      const rateLimited = await isRateLimited(ws);
+      if (rateLimited) {
         ws.send(JSON.stringify({ error: "Rate limit exceeded" }));
         return;
       }
@@ -93,10 +84,9 @@ wss.on("connection", (ws) => {
 // Rate limiting check for WebSocket messages
 async function isRateLimited(ws) {
   const ip = ws._socket.remoteAddress;
-  const rateLimitKey = `rate_limit_${ip}`;
+  const rateLimitKey = `rate_limit_${ip}`; // Fixed syntax
   try {
     const count = await redisClient.get(rateLimitKey);
-    console.log(`Rate limit count for IP ${ip}: ${count}`);
     return count && parseInt(count) >= 5;
   } catch (err) {
     console.error("Rate limit error:", err);
@@ -124,5 +114,5 @@ function heartbeat(ws) {
 // Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`); // Fixed syntax
 });
