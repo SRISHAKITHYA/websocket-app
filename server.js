@@ -6,7 +6,6 @@ const RedisStore = require("connect-redis").default;
 const redis = require("redis");
 const rateLimit = require("express-rate-limit");
 
-// Initialize Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -36,6 +35,11 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
+
+// Simple HTTP route
+app.get("/", (req, res) => {
+  res.send("WebSocket server is running");
+});
 
 // WebSocket connection handling
 wss.on("connection", (ws) => {
