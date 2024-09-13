@@ -27,7 +27,7 @@ app.use(
     secret: process.env.SESSION_SECRET || "default-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: isProduction }, // Set secure cookies for HTTPS in production
+    cookie: { secure: isProduction },
   })
 );
 
@@ -96,7 +96,6 @@ async function isRateLimited(ws) {
 
 // Handle priority messages
 function handlePriorityMessage(ws, message) {
-  // Example: handle high-priority messages differently
   if (message.priority === "high") {
     ws.send(
       JSON.stringify({
