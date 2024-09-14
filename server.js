@@ -26,6 +26,13 @@ redisClient.on("ready", () => {
 // Session middleware configuration
 const isProduction = process.env.NODE_ENV === "production";
 app.use(
+  cors({
+    origin: "https://websocketmanager.netlify.app/",
+    credentials: true,
+  })
+);
+
+app.use(
   session({
     store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET || "default-secret",
@@ -45,7 +52,7 @@ app.use(limiter);
 
 // Simple HTTP route
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html"); // Serve the frontend HTML
+  res.send("WebSocket application backend is running!"); // Serve the frontend HTML
 });
 
 const connectedClients = {}; // Maintain a map of connected clients
