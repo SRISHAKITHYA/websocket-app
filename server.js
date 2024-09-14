@@ -10,10 +10,11 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Initialize Redis client
+// Initialize Redis client using the Redis URL from Render
 let redisClient = redis.createClient({
-  url: "redis://red-cri33sbv2p9s73bjcu3g:6379",
+  url: process.env.REDIS_URL,
 });
+
 redisClient.on("error", (err) => {
   console.error("Redis error:", err);
 });
@@ -76,8 +77,6 @@ wss.on("connection", (ws) => {
     }
   });
 
-  // ws.on("close", () => console.log("Client disconnected"));
-
   // Send a heartbeat every 30 seconds
   const heartbeatInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
@@ -88,18 +87,19 @@ wss.on("connection", (ws) => {
   }, 30000);
 });
 
-// Rate limiting check for WebSocket messages
+// Rate limiting check for WebSocket messages using Redis
 async function isRateLimited(ws) {
   const ip = ws._socket.remoteAddress;
   const rateLimitKey = `rate_limit_${ip}`;
+
   try {
     const count = await redisClient.get(rateLimitKey);
     if (count && parseInt(count) >= 5) {
       return true;
     }
-    // Increment the count
+
+    // Increment the count and set expiration (1 minute)
     await redisClient.incr(rateLimitKey);
-    // Set expiration time (e.g., 1 minute)
     await redisClient.expire(rateLimitKey, 60);
     return false;
   } catch (err) {
