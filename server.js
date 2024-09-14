@@ -11,7 +11,6 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const cors = require("cors");
 
-// Replace with your actual Redis URL from Render
 const REDIS_URL = "redis://red-crin5mu8ii6s73f6h2rg:6379";
 
 let redisClient = redis.createClient({ url: REDIS_URL });
@@ -45,24 +44,24 @@ app.use(
 
 // Rate limiter middleware for HTTP requests
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 5, // Limit each IP to 5 requests per windowMs
+  windowMs: 1 * 60 * 1000,
+  max: 5,
   message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
 
 // Simple HTTP route
 app.get("/", (req, res) => {
-  res.send("WebSocket application backend is running!"); // Serve the frontend HTML
+  res.send("WebSocket application backend is running!");
 });
 
-const connectedClients = {}; // Maintain a map of connected clients
+const connectedClients = {}; //a map of connected clients
 
 // WebSocket connection handling
 wss.on("connection", (ws) => {
   console.log("Client connected");
 
-  const clientId = Math.random().toString(36).substring(2, 15); // Generate unique ID
+  const clientId = Math.random().toString(36).substring(2, 15); // Generating unique ID
   connectedClients[clientId] = ws;
 
   ws.on("message", async (message) => {
