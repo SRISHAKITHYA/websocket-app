@@ -15,7 +15,6 @@ const cors = require("cors");
 const REDIS_URL = "redis://red-crin5mu8ii6s73f6h2rg:6379";
 
 let redisClient = redis.createClient({ url: REDIS_URL });
-let redisPublisher = redisClient.duplicate();
 
 redisClient.on("error", (err) => {
   console.error("Redis error:", err);
@@ -47,7 +46,7 @@ app.use(
 // Rate limiter middleware for HTTP requests
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 5,
+  max: 5, // Limit each IP to 5 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
@@ -57,7 +56,7 @@ app.get("/", (req, res) => {
   res.send("WebSocket application backend is running!"); // Serve the frontend HTML
 });
 
-const connectedClients = {};
+const connectedClients = {}; // Maintain a map of connected clients
 
 // WebSocket connection handling
 wss.on("connection", (ws) => {
@@ -65,15 +64,6 @@ wss.on("connection", (ws) => {
 
   const clientId = Math.random().toString(36).substring(2, 15); // Generate unique ID
   connectedClients[clientId] = ws;
-
-  // Notify other instances about the new client connection
-  redisPublisher.publish(
-    "broadcast",
-    JSON.stringify({
-      event: "client_connected",
-      clientId,
-    })
-  );
 
   ws.on("message", async (message) => {
     try {
@@ -110,28 +100,18 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     console.log("Client disconnected");
     delete connectedClients[clientId];
-    redisPublisher.publish(
-      "broadcast",
-      JSON.stringify({ event: "client_disconnected", clientId })
-    );
   });
 
-  // Send a dynamic heartbeat based on load
-  let heartbeatIntervalTime = 30000; // Default interval
+  // Send a heartbeat every 30 seconds (adjust as needed)
   const heartbeatInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "heartbeat" }));
     } else {
       clearInterval(heartbeatInterval);
     }
-  }, heartbeatIntervalTime);
-
-  // Adjust heartbeat interval based on load
-  setInterval(() => {
-    const connectedClientsCount = Object.keys(connectedClients).length;
-    heartbeatIntervalTime = connectedClientsCount > 100 ? 60000 : 30000; // Increase interval if overloaded
-  }, 60000); // Check every minute
+  }, 30000);
 });
+
 // Rate limiting check for WebSocket messages using Redis
 async function isRateLimited(ws) {
   const ip = ws._socket.remoteAddress;
@@ -169,22 +149,6 @@ function handlePriorityMessage(ws, message) {
 function heartbeat(ws) {
   ws.send(JSON.stringify({ type: "heartbeat" }));
 }
-
-redisPublisher.subscribe("broadcast");
-redisPublisher.on("message", (channel, message) => {
-  if (channel === "broadcast") {
-    const data = JSON.parse(message);
-    if (
-      data.event === "client_connected" ||
-      data.event === "client_disconnected"
-    ) {
-      console.log(`Broadcast event received: ${data.event}`);
-      for (const id in connectedClients) {
-        connectedClients[id].send(JSON.stringify(data));
-      }
-    }
-  }
-});
 
 // Start the server
 const PORT = process.env.PORT || 3000;
