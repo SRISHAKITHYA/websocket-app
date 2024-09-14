@@ -10,10 +10,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Initialize Redis client using the Redis URL from Render
-let redisClient = redis.createClient({
-  url: process.env.REDIS_URL,
-});
+// Replace with your actual Redis URL from Render
+const REDIS_URL = "redis://red-crin5mu8ii6s73f6h2rg:6379";
+
+let redisClient = redis.createClient({ url: REDIS_URL });
 
 redisClient.on("error", (err) => {
   console.error("Redis error:", err);
@@ -45,12 +45,17 @@ app.use(limiter);
 
 // Simple HTTP route
 app.get("/", (req, res) => {
-  res.send("WebSocket server is running");
+  res.sendFile(__dirname + "/index.html"); // Serve the frontend HTML
 });
+
+const connectedClients = {}; // Maintain a map of connected clients
 
 // WebSocket connection handling
 wss.on("connection", (ws) => {
   console.log("Client connected");
+
+  const clientId = Math.random().toString(36).substring(2, 15); // Generate unique ID
+  connectedClients[clientId] = ws;
 
   ws.on("message", async (message) => {
     try {
@@ -67,6 +72,13 @@ wss.on("connection", (ws) => {
       // Handle heartbeat and message priority
       if (data.priority) {
         handlePriorityMessage(ws, data);
+      } else {
+        // Broadcast message to all connected clients (excluding sender)
+        for (const id in connectedClients) {
+          if (id !== clientId) {
+            connectedClients[id].send(JSON.stringify(data));
+          }
+        }
       }
 
       // Simulate heartbeat
@@ -77,7 +89,12 @@ wss.on("connection", (ws) => {
     }
   });
 
-  // Send a heartbeat every 30 seconds
+  ws.on("close", () => {
+    console.log("Client disconnected");
+    delete connectedClients[clientId];
+  });
+
+  // Send a heartbeat every 30 seconds (adjust as needed)
   const heartbeatInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "heartbeat" }));
