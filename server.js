@@ -9,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+const cors = require("cors");
 
 // Replace with your actual Redis URL from Render
 const REDIS_URL = "redis://red-crin5mu8ii6s73f6h2rg:6379";
